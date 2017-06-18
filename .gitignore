@@ -3,3 +3,4 @@
 *.hex
 tags
 /cscope*
+/tester

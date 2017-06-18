@@ -71,14 +71,13 @@ read_voltage(uint8_t pin)
 int
 main(void)
 {
-	spi_init();
+	spi_init(false);
 	adc_init();
 	while (1) {
 		uint16_t volt = read_voltage(ADC1);
-		spi_transfer_byte('v');
-		spi_transfer_byte((uint8_t)(volt & 0x00FF));
-		spi_transfer_byte((uint8_t)(volt >> 8));
-		//spi_transfer_byte(volt);
+		spi_transfer_byte_as_slave('v');
+		spi_transfer_byte_as_slave((uint8_t)(volt & 0x00FF));
+		spi_transfer_byte_as_slave((uint8_t)(volt >> 8));
 		_delay_ms(20);
 	}
 	spi_end();

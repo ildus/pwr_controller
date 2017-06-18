@@ -12,11 +12,20 @@
 
 /* Initialize pins for spi communication */
 void
-spi_init(void)
+spi_init(bool is_master)
 {
 	DDR_SPI |= _BV(DD_USCK);	/* USCK as output */
 	DDR_SPI |= _BV(DD_DO);		/* DO as output */
 	DDR_SPI &= ~_BV(DD_DI);		/* DI as input */
+
+	if (!is_master)
+	{
+		/*
+		 * three wire mode
+		 * external clock
+		 */
+		USICR = (1 << USIWM0) | (1 << USICS1);
+	}
 
 	// write 0 to USCK and DO outputs
 	//PORT_SPI &= ~((1 << DD_DO) | (1 << DD_USCK));
@@ -40,6 +49,18 @@ spi_transfer_byte(uint8_t data)
 	while (!(USISR & _BV(USIOIF)))
 		USICR |= _BV(USITC);
 
+	return USIDR;
+}
+
+/* Shift byte through target device and get one byte */
+uint8_t
+spi_transfer_byte_as_slave(uint8_t data)
+{
+	USIDR = data;
+
+	// clear counter and counter overflow interrupt flag
+	USISR = _BV(USIOIF);
+	while (!(USISR & _BV(USIOIF)));
 	return USIDR;
 }
 

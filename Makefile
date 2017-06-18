@@ -23,3 +23,7 @@ shell:
 
 clean:
 	rm main.elf main.o spi.o
+
+test:
+	gcc test.c -o tester -lwiringPi
+	./tester
