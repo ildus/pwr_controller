@@ -9,6 +9,7 @@
 
 void spi_init(bool is_master);
 uint8_t spi_transfer_byte(uint8_t data);
+uint8_t spi_transfer_byte_as_slave(uint8_t data);
 void spi_end(void);
 
 #endif /* _SPI_H_ */

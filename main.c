@@ -1,4 +1,5 @@
 #include "avr/io.h"
+#include "avr/interrupt.h"
 #include "spi.h"
 #include <util/delay.h>
 
@@ -58,7 +59,6 @@ uint16_t
 read_voltage(uint8_t pin)
 {
 	int		sum = 0;
-	double	v;
 
 	for (int i = 0; i < 9; i++)
 		sum += adc_read(pin);
@@ -71,6 +71,7 @@ read_voltage(uint8_t pin)
 int
 main(void)
 {
+	sei();
 	spi_init(false);
 	adc_init();
 	while (1) {

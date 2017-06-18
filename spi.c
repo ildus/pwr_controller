@@ -10,22 +10,43 @@
 #define DD_DO		DDA5
 #define DD_DI		DDA6
 
+uint8_t data_to_send = 10,
+	cmd;
+
+ISR(USI_OVF_vect) {
+	cmd = USIDR;
+	USIDR = 0xFF;
+	USISR |= _BV(USIOIF);
+}
+
 /* Initialize pins for spi communication */
 void
 spi_init(bool is_master)
 {
-	DDR_SPI |= _BV(DD_USCK);	/* USCK as output */
 	DDR_SPI |= _BV(DD_DO);		/* DO as output */
-	DDR_SPI &= ~_BV(DD_DI);		/* DI as input */
 
 	if (!is_master)
 	{
 		/*
 		 * three wire mode
 		 * external clock
+		 * enable interrupt
 		 */
-		USICR = (1 << USIWM0) | (1 << USICS1);
+		USICR = _BV(USIWM0) | _BV(USICS1) | _BV(USIOIE);
+		USISR = _BV(USIOIF);
+		USIDR = 0xFF;
+
+		// set as inputs 
+		DDR_SPI &= ~(_BV(DD_USCK) | _BV(DD_DI));
+ 		// set pullup
+		PORT_SPI |= _BV(DD_USCK) | _BV(DD_DI);
 	}
+	else
+	{
+		DDR_SPI &= ~_BV(DD_DI);		/* DI as input */
+		DDR_SPI |= _BV(DD_USCK);	/* USCK as output */
+	}
+		
 
 	// write 0 to USCK and DO outputs
 	//PORT_SPI &= ~((1 << DD_DO) | (1 << DD_USCK));
@@ -52,16 +73,11 @@ spi_transfer_byte(uint8_t data)
 	return USIDR;
 }
 
-/* Shift byte through target device and get one byte */
 uint8_t
 spi_transfer_byte_as_slave(uint8_t data)
 {
-	USIDR = data;
-
-	// clear counter and counter overflow interrupt flag
-	USISR = _BV(USIOIF);
-	while (!(USISR & _BV(USIOIF)));
-	return USIDR;
+	data_to_send = data;
+	return cmd;
 }
 
 void
