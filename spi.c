@@ -6,16 +6,17 @@
 #define PORT_SPI PORTA
 #define DDR_SPI DDRA
 
-#define DD_USCK		DDA4
-#define DD_DO		DDA5
-#define DD_DI		DDA6
+#define DD_USCK		PA4
+#define DD_DO		PA5
+#define DD_DI		PA6
 
-uint8_t data_to_send = 10,
-	cmd;
+volatile uint8_t	data_to_send = 0,
+			cmd;
 
-ISR(USI_OVF_vect) {
+ISR(USI_OVF_vect)
+{
 	cmd = USIDR;
-	USIDR = 0xFF;
+	USIDR = 0xAA;
 	USISR |= _BV(USIOIF);
 }
 
@@ -23,33 +24,30 @@ ISR(USI_OVF_vect) {
 void
 spi_init(bool is_master)
 {
-	DDR_SPI |= _BV(DD_DO);		/* DO as output */
 
 	if (!is_master)
 	{
+		sei();
+
+		DDR_SPI |= _BV(DD_DO);				/* DO as output */
+		DDR_SPI &= ~(_BV(DD_DI) | _BV(DD_USCK));	/* DI and SCK as inputs */
+		PORT_SPI |= _BV(DD_DI) | _BV(DD_USCK);		/* enable pullups */
+
 		/*
 		 * three wire mode
-		 * external clock
-		 * enable interrupt
+		 * external clock, both edges
+		 * enable overflow interrupt
 		 */
+
+		USIDR = 0;
 		USICR = _BV(USIWM0) | _BV(USICS1) | _BV(USIOIE);
 		USISR = _BV(USIOIF);
-		USIDR = 0xFF;
-
-		// set as inputs 
-		DDR_SPI &= ~(_BV(DD_USCK) | _BV(DD_DI));
- 		// set pullup
-		PORT_SPI |= _BV(DD_USCK) | _BV(DD_DI);
 	}
 	else
 	{
-		DDR_SPI &= ~_BV(DD_DI);		/* DI as input */
-		DDR_SPI |= _BV(DD_USCK);	/* USCK as output */
+		DDR_SPI |= _BV(DD_DO) | _BV(DD_USCK);		/* DO and USCK as output */
+		DDR_SPI &= ~_BV(DD_DI);				/* DI as input */
 	}
-		
-
-	// write 0 to USCK and DO outputs
-	//PORT_SPI &= ~((1 << DD_DO) | (1 << DD_USCK));
 }
 
 /* Shift byte through target device and get one byte */

@@ -19,6 +19,17 @@ const double INTERNAL_VREF = 1.197;
 #define ADC6 0b0110
 #define ADC7 0b0111
 
+#define DDR_LED DDRB
+#define PORT_LED PORTB
+#define LED_RED PB1
+#define LED_GREEN PB0
+
+void setup_led(void)
+{
+	DDR_LED |= _BV(LED_RED) | _BV(LED_GREEN);
+	PORT_LED &= ~(_BV(LED_RED) | _BV(LED_GREEN));
+}
+
 void
 adc_init(void)
 {
@@ -71,15 +82,17 @@ read_voltage(uint8_t pin)
 int
 main(void)
 {
-	sei();
-	spi_init(false);
-	adc_init();
+	setup_led();
+	PORT_LED |= _BV(LED_GREEN);
+
+	// spi_init(false);
+	// adc_init();
 	while (1) {
-		uint16_t volt = read_voltage(ADC1);
-		spi_transfer_byte_as_slave('v');
-		spi_transfer_byte_as_slave((uint8_t)(volt & 0x00FF));
-		spi_transfer_byte_as_slave((uint8_t)(volt >> 8));
+		// uint16_t volt = read_voltage(ADC1);
+		// spi_transfer_byte_as_slave('v');
+		// spi_transfer_byte_as_slave((uint8_t)(volt & 0x00FF));
+		// spi_transfer_byte_as_slave((uint8_t)(volt >> 8));
 		_delay_ms(20);
 	}
-	spi_end();
+	//spi_end();
 }
