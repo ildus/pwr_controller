@@ -3,16 +3,25 @@ FLASHER        = avrdude -C avrdude.conf -c pi_1 -p $(MCU_TARGET) -P gpio
 F_CPU          = 8000000
 #BAUDRATE       = -b 9600
 BAUDRATE       = -B 200
-CFLAGS	       = -std=c99
+CFLAGS	       = -std=c11 -DF_CPU=${F_CPU} -Wall -Os -mmcu=attiny24a
 
-all: fuses program
+CC = avr-gcc
+OBJ = main.o spi.o timer.o
+DEPS = spi.h timer.h
 
-program:
-	avr-gcc -g ${CFLAGS} -DF_CPU=${F_CPU} -Wall -Os -mmcu=attiny24a -c -o main.o main.c
-	avr-gcc -g ${CFLAGS} -DF_CPU=${F_CPU} -Wall -Os -mmcu=attiny24a -c -o spi.o spi.c
-	avr-gcc -g ${CFLAGS} -DF_CPU=${F_CPU} -Wall -Os -mmcu=attiny24a -o main.elf main.o spi.o
-	avr-size main.elf
-	avr-objcopy -j .text -j .data -O ihex main.elf main.hex
+%.o: %.c $(DEPS)
+	$(CC) -c -o $@ $< $(CFLAGS)
+
+all: main.hex
+
+main.elf: $(OBJ)
+	$(CC) -o $@ $^ $(CFLAGS)
+	avr-size $@
+
+main.hex: main.elf
+	avr-objcopy -j .text -j .data -O ihex $^ $@
+
+upload: fuses
 	$(FLASHER) ${BAUDRATE} -U flash:w:main.hex
 
 fuses:
@@ -22,8 +31,4 @@ shell:
 	$(FLASHER) -t
 
 clean:
-	rm main.elf main.o spi.o
-
-test:
-	gcc test.c -o tester -lwiringPi
-	./tester
+	rm *.elf *.o *.hex
