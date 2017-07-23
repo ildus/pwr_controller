@@ -85,23 +85,23 @@ int
 main(void)
 {
 	unsigned long old_millis = 0;
-	setup_led();
-	PORT_LED |= _BV(LED_GREEN);
+	//setup_led();
+	//PORT_LED |= _BV(LED_GREEN);
 
-	// spi_init(false);
-	// adc_init();
+	spi_init(false);
+	//adc_init();
 	while (1) {
-		unsigned long current_time = millis();
-		if (current_time - old_millis > 3000)
-		{
-			PORT_LED ^=  _BV(LED_RED);
-			old_millis = current_time;
-		}
-		// uint16_t volt = read_voltage(ADC1);
-		// spi_transfer_byte_as_slave('v');
-		// spi_transfer_byte_as_slave((uint8_t)(volt & 0x00FF));
-		// spi_transfer_byte_as_slave((uint8_t)(volt >> 8));
+		//unsigned long current_time = millis();
+		//if (current_time - old_millis > 3000)
+		//{
+			//PORT_LED ^=  _BV(LED_RED);
+		//	old_millis = current_time;
+		//}
+		uint16_t volt = 100; // read_voltage(ADC2);
+		spi_transfer_byte_as_slave('v');
+		spi_transfer_byte_as_slave((uint8_t)(volt & 0x00FF));
+		spi_transfer_byte_as_slave((uint8_t)(volt >> 8));
 		_delay_ms(100);
 	}
-	//spi_end();
+	spi_end();
 }
