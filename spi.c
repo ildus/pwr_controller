@@ -20,7 +20,7 @@ volatile uint8_t	data_to_send = 0,
 
 int enabled = 0;
 
-ISR(INT0_vect)
+ISR(EXT_INT0_vect)
 {
 	// disable SPI
 	//USICR &= ~(_BV(USIWM0) | _BV(USICS1) | _BV(USIOIE));
@@ -54,13 +54,13 @@ spi_init(bool is_master)
 {
 	if (!is_master)
 	{
-		sei();
 		/* SS as input */
 		DDR_SS &= ~_BV(DD_SS);
 		PORT_SS &= ~_BV(DD_SS);
 
 		/* enable INT0 */
 		GIMSK |= INT0;
+		sei();
 
 		/* any logical change causes interrupt */
 		//MCUCR |= ISC00;
