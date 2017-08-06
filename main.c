@@ -94,21 +94,51 @@ read_voltage(uint8_t pin)
 	//return (uint8_t) (v * 100);
 }
 
+void setup_btn(void)
+{
+	DDRA &= ~_BV(PA1);
+	PORTA &= ~_BV(PA1);
+}
+
+bool btn_clicked(void)
+{
+	static unsigned last_time = 0;
+	if (PINA & _BV(PA1))
+	{
+		if (last_time && (millis() - last_time > 50))
+			return true;
+		else if (last_time == 0)
+			last_time = millis();
+	}
+	else
+		last_time = 0;
+
+	return false;
+}
+
 int
 main(void)
 {
+	bool pwr_on = false;
 	sei();
 
 	unsigned long old_millis = 0;
 	setup_led();
 	setup_timer0();
-	enable_power(true);
+	setup_btn();
+	enable_power(pwr_on);
 	//PORT_LED |= _BV(LED_GREEN);
 	PORT_LED |= _BV(LED_RED);
 
 	//spi_init(false);
 	//adc_init();
 	while (1) {
+		if (!pwr_on && btn_clicked())
+		{
+			enable_power(pwr_on);
+			pwr_on = true;
+		}
+
 		unsigned long current_time = millis();
 		if (current_time - old_millis >= 3000)
 		{
@@ -119,7 +149,7 @@ main(void)
 		//spi_transfer_byte_as_slave('v');
 		//spi_transfer_byte_as_slave((uint8_t)(volt & 0x00FF));
 		//spi_transfer_byte_as_slave((uint8_t)(volt >> 8));
-		_delay_ms(100);
+		_delay_ms(10);
 	}
 	spi_end();
 }
