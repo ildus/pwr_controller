@@ -135,8 +135,8 @@ main(void)
 	while (1) {
 		if (!pwr_on && btn_clicked())
 		{
-			enable_power(pwr_on);
 			pwr_on = true;
+			enable_power(pwr_on);
 		}
 
 		unsigned long current_time = millis();
