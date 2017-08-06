@@ -104,13 +104,13 @@ main(void)
 	setup_timer0();
 	enable_power(true);
 	//PORT_LED |= _BV(LED_GREEN);
-	//PORT_LED |= _BV(LED_RED);
+	PORT_LED |= _BV(LED_RED);
 
 	//spi_init(false);
 	//adc_init();
 	while (1) {
 		unsigned long current_time = millis();
-		if (current_time >= 3000)
+		if (current_time - old_millis >= 3000)
 		{
 			PORT_LED ^= _BV(LED_RED);
 			old_millis = current_time;
