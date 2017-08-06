@@ -1,8 +1,14 @@
 MCU_TARGET     = ATtiny24
+
+ifdef USBASP
+FLASHER        = avrdude -c usbasp -p $(MCU_TARGET)
+BAUDRATE       = -b 9600
+else
 FLASHER        = avrdude -C avrdude.conf -c pi_1 -p $(MCU_TARGET) -P gpio
-F_CPU          = 8000000
-#BAUDRATE       = -b 9600
 BAUDRATE       = -B 200
+endif
+
+F_CPU          = 8000000
 CFLAGS	       = -std=c11 -DF_CPU=${F_CPU} -Wall -Os -mmcu=attiny24a
 
 CC = avr-gcc

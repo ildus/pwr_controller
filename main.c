@@ -86,7 +86,7 @@ main(void)
 {
 	unsigned long old_millis = 0;
 	//setup_led();
-	//PORT_LED |= _BV(LED_GREEN);
+	PORT_LED |= _BV(LED_GREEN);
 
 	spi_init(false);
 	//adc_init();
