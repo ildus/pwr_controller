@@ -8,7 +8,8 @@ volatile unsigned long millis_cnt;
 
 ISR(TIM0_OVF_vect)
 {
-	millis_cnt += (int) ((1000 / (F_CPU/1024)) * 256);
+	//millis_cnt += (int) ((1000 / (F_CPU/1024)) * 256);
+	millis_cnt += 327;
 }
 
 void
@@ -18,14 +19,10 @@ setup_timer0(void)
 
 	// initialize counters
     TCNT0 = 0;
-	timer0_overflow = 0;
 	millis_cnt = 0;
 
 	// enable overflow interrupt
 	TIMSK0 |= _BV(TOIE0);
-
-	// enable global interrupts
-	sei();
 }
 
 unsigned long

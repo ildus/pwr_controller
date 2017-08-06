@@ -23,13 +23,26 @@ const double INTERNAL_VREF = 1.197;
 
 #define DDR_LED DDRB
 #define PORT_LED PORTB
-#define LED_RED PB1
-#define LED_GREEN PB0
+#define LED_RED PB0
+#define LED_GREEN PB1
+
+#define DDR_PWR DDRA
+#define PORT_PWR PORTA
+#define PIN_PWR PA3
 
 void setup_led(void)
 {
 	DDR_LED |= _BV(LED_RED) | _BV(LED_GREEN);
 	PORT_LED &= ~(_BV(LED_RED) | _BV(LED_GREEN));
+}
+
+void enable_power(bool enable)
+{
+	DDR_PWR |= _BV(PIN_PWR);
+	if (enable)
+		PORT_PWR |= _BV(PIN_PWR);
+	else
+		PORT_PWR &= ~_BV(PIN_PWR);
 }
 
 void
@@ -84,23 +97,28 @@ read_voltage(uint8_t pin)
 int
 main(void)
 {
-	unsigned long old_millis = 0;
-	//setup_led();
-	PORT_LED |= _BV(LED_GREEN);
+	sei();
 
-	spi_init(false);
+	unsigned long old_millis = 0;
+	setup_led();
+	setup_timer0();
+	enable_power(true);
+	//PORT_LED |= _BV(LED_GREEN);
+	//PORT_LED |= _BV(LED_RED);
+
+	//spi_init(false);
 	//adc_init();
 	while (1) {
-		//unsigned long current_time = millis();
-		//if (current_time - old_millis > 3000)
-		//{
-			//PORT_LED ^=  _BV(LED_RED);
-		//	old_millis = current_time;
-		//}
-		uint16_t volt = 100; // read_voltage(ADC2);
-		spi_transfer_byte_as_slave('v');
-		spi_transfer_byte_as_slave((uint8_t)(volt & 0x00FF));
-		spi_transfer_byte_as_slave((uint8_t)(volt >> 8));
+		unsigned long current_time = millis();
+		if (current_time >= 3000)
+		{
+			PORT_LED ^= _BV(LED_RED);
+			old_millis = current_time;
+		}
+		//uint16_t volt = 100; // read_voltage(ADC2);
+		//spi_transfer_byte_as_slave('v');
+		//spi_transfer_byte_as_slave((uint8_t)(volt & 0x00FF));
+		//spi_transfer_byte_as_slave((uint8_t)(volt >> 8));
 		_delay_ms(100);
 	}
 	spi_end();
