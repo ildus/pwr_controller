@@ -102,7 +102,7 @@ void setup_btn(void)
 
 bool btn_clicked(void)
 {
-	static unsigned last_time = 0;
+	static unsigned long last_time = 0;
 	if (PINA & _BV(PA1))
 	{
 		if (last_time && (millis() - last_time > 50))
