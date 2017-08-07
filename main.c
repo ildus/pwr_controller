@@ -111,7 +111,7 @@ void check_button_state(ButtonState *state)
 	char level = PINA & _BV(PA1);
 	if (level && state->old_level != level)
 	{
-		if (millis() - state->last_click > 50) {
+		if (millis() - state->last_click > 100) {
 			state->clicked = true;
 		}
 		state->last_click = millis();
@@ -138,7 +138,7 @@ main(void)
 	//adc_init();
 	while (1) {
 		check_button_state(&btn_state);
-		if (!btn_state.clicked)
+		if (!btn_state.old_level)
 			click_time = 0;
 
 		if (!pwr_on && btn_state.clicked)
@@ -146,7 +146,7 @@ main(void)
 			btn_state.clicked = false;
 			pwr_on = true;
 			enable_power(pwr_on);
-			PORT_LED |= _BV(LED_RED);
+			PORT_LED |= _BV(LED_GREEN);
 		}
 		else if (pwr_on && btn_state.clicked)
 		{
@@ -155,8 +155,10 @@ main(void)
 				btn_state.clicked = false;
 				pwr_on = false;
 				enable_power(pwr_on);
-				PORT_LED &= ~_BV(LED_RED);
-			} else if (click_time == 0)
+				PORT_LED &= ~_BV(LED_GREEN);
+				_delay_ms(5000);
+			}
+			else if (click_time == 0)
 				click_time = millis();
 		}
 
@@ -164,6 +166,7 @@ main(void)
 		//spi_transfer_byte_as_slave('v');
 		//spi_transfer_byte_as_slave((uint8_t)(volt & 0x00FF));
 		//spi_transfer_byte_as_slave((uint8_t)(volt >> 8));
+		_delay_ms(10);
 	}
 	spi_end();
 }
