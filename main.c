@@ -10,7 +10,8 @@
  * external capacitor should be connected to Aref
  * calibrated for actual chip, i got 1.197V
  */
-const double INTERNAL_VREF = 1.197;
+const double INTERNAL_VREF = 1.208,
+			 DELIM_COEF = 0.18; // 1.5K and 330 resistors
 
 #define ADC0 0b0000
 #define ADC1 0b0001
@@ -166,12 +167,22 @@ main(void)
 		{
 			uint8_t data[4];
 			uint16_t volt = read_voltage(ADC0);
+			float voltage = volt * INTERNAL_VREF / 1024 / DELIM_COEF;
+
+			if (voltage <= 2.85)
+				PORT_LED ^= _BV(LED_RED);
+			else if (voltage <= 3.1)
+				PORT_LED |= _BV(LED_RED);
+			else
+				PORT_LED &= ~_BV(LED_RED);
 
 			data[0] = 'l';
 			data[1]= (uint8_t)(volt & 0x00FF);
 			data[2] = 'h';
 			data[3] = (uint8_t)(volt >> 8);
 			spi_transfer_data_as_slave(data);
+
+			adc_time = millis();
 		}
 		_delay_ms(10);
 	}
