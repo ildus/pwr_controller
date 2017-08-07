@@ -1,7 +1,6 @@
 # pwr_controller
-DC-DC step up module for Orange PI Zero, controlled by Attiny24A
 
-This repository contains code for https://github.com/ildus/power_controller
+Power controller for Orange PI, based on Attiny24A
 
 # Orange PI Zero setup
 
