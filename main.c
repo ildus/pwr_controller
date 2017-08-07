@@ -23,8 +23,8 @@ const double INTERNAL_VREF = 1.197;
 
 #define DDR_LED DDRB
 #define PORT_LED PORTB
-#define LED_RED PB0
-#define LED_GREEN PB1
+#define LED_RED PB1
+#define LED_GREEN PB0
 
 #define DDR_PWR DDRA
 #define PORT_PWR PORTA
@@ -100,56 +100,70 @@ void setup_btn(void)
 	PORTA &= ~_BV(PA1);
 }
 
-bool btn_clicked(void)
-{
-	static unsigned long last_time = 0;
-	if (PINA & _BV(PA1))
-	{
-		if (last_time && (millis() - last_time > 50))
-			return true;
-		else if (last_time == 0)
-			last_time = millis();
-	}
-	else
-		last_time = 0;
+typedef struct ButtonState {
+	bool clicked;
+	unsigned long last_click;
+	char old_level;
+} ButtonState;
 
-	return false;
+void check_button_state(ButtonState *state)
+{
+	char level = PINA & _BV(PA1);
+	if (level && state->old_level != level)
+	{
+		if (millis() - state->last_click > 50) {
+			state->clicked = true;
+		}
+		state->last_click = millis();
+	}
+	state->old_level = level;
 }
 
 int
 main(void)
 {
-	bool pwr_on = false;
-	sei();
+	unsigned long	click_time = 0;
+	ButtonState		btn_state;
+	bool			pwr_on = false;
 
-	unsigned long old_millis = 0;
+	sei();
 	setup_led();
 	setup_timer0();
 	setup_btn();
 	enable_power(pwr_on);
 	//PORT_LED |= _BV(LED_GREEN);
-	PORT_LED |= _BV(LED_RED);
+	//PORT_LED |= _BV(LED_RED);
 
 	//spi_init(false);
 	//adc_init();
 	while (1) {
-		if (!pwr_on && btn_clicked())
+		check_button_state(&btn_state);
+		if (!btn_state.clicked)
+			click_time = 0;
+
+		if (!pwr_on && btn_state.clicked)
 		{
+			btn_state.clicked = false;
 			pwr_on = true;
 			enable_power(pwr_on);
+			PORT_LED |= _BV(LED_RED);
+		}
+		else if (pwr_on && btn_state.clicked)
+		{
+			if (click_time && millis() - click_time > 3000)
+			{
+				btn_state.clicked = false;
+				pwr_on = false;
+				enable_power(pwr_on);
+				PORT_LED &= ~_BV(LED_RED);
+			} else if (click_time == 0)
+				click_time = millis();
 		}
 
-		unsigned long current_time = millis();
-		if (current_time - old_millis >= 3000)
-		{
-			PORT_LED ^= _BV(LED_RED);
-			old_millis = current_time;
-		}
 		//uint16_t volt = 100; // read_voltage(ADC2);
 		//spi_transfer_byte_as_slave('v');
 		//spi_transfer_byte_as_slave((uint8_t)(volt & 0x00FF));
 		//spi_transfer_byte_as_slave((uint8_t)(volt >> 8));
-		_delay_ms(10);
 	}
 	spi_end();
 }

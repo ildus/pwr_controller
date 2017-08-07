@@ -8,7 +8,7 @@ volatile unsigned long millis_cnt;
 
 ISR(TIM0_OVF_vect)
 {
-	millis_cnt += (int) ((10000.0 / (F_CPU/1024)) * 256);
+	millis_cnt += (int) ((1000.0 / (F_CPU/1024)) * 256);
 }
 
 void

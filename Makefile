@@ -31,7 +31,7 @@ upload: fuses
 	$(FLASHER) ${BAUDRATE} -U flash:w:main.hex
 
 fuses:
-	$(FLASHER) ${BAUDRATE} -U lfuse:w:0x62:m -U hfuse:w:0xdf:m
+	$(FLASHER) ${BAUDRATE} -U lfuse:w:0xE2:m -U hfuse:w:0xdf:m
 
 shell:
 	$(FLASHER) -t
