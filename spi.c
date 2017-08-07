@@ -14,11 +14,11 @@
 #define DDR_SS		DDRB
 #define DD_SS		PB2
 #define PIN_SS		PINB
+#define BUF_SIZE	4
 
-volatile uint8_t	data_to_send = 0,
-			cmd;
-
-volatile int enabled = 0;
+volatile uint8_t	cmd;
+volatile int		ibuf = 0;
+uint8_t				buf[BUF_SIZE];
 
 ISR(EXT_INT0_vect)
 {
@@ -35,7 +35,8 @@ ISR(EXT_INT0_vect)
 		 * enable overflow interrupt
 		 */
 
-		USIDR = 0;
+		ibuf = 0;
+		USIDR = buf[ibuf];
 		USICR = _BV(USIWM0) | _BV(USICS1) | _BV(USIOIE);
 		USISR = _BV(USIOIF);
 	}
@@ -43,8 +44,12 @@ ISR(EXT_INT0_vect)
 
 ISR(USI_OVF_vect)
 {
+	ibuf++;
+	if (ibuf == BUF_SIZE)
+		ibuf = 0;
+
 	cmd = USIDR;
-	USIDR = 0xAA;
+	USIDR = buf[ibuf];
 	USISR |= _BV(USIOIF);
 }
 
@@ -97,9 +102,11 @@ spi_transfer_byte(uint8_t data)
 }
 
 uint8_t
-spi_transfer_byte_as_slave(uint8_t data)
+spi_transfer_data_as_slave(uint8_t *data)
 {
-	data_to_send = data;
+	for (int i = 0; i < BUF_SIZE; i++)
+		buf[i] = data[i];
+
 	return cmd;
 }
 

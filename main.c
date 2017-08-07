@@ -122,7 +122,8 @@ void check_button_state(ButtonState *state)
 int
 main(void)
 {
-	unsigned long	click_time = 0;
+	unsigned long	click_time = 0,
+					adc_time = 0;
 	ButtonState		btn_state;
 	bool			pwr_on = false;
 
@@ -135,7 +136,7 @@ main(void)
 	//PORT_LED |= _BV(LED_RED);
 
 	spi_init(false);
-	//adc_init();
+	adc_init();
 	while (1) {
 		check_button_state(&btn_state);
 		if (!btn_state.old_level)
@@ -161,10 +162,17 @@ main(void)
 				click_time = millis();
 		}
 
-		//uint16_t volt = 100; // read_voltage(ADC2);
-		//spi_transfer_byte_as_slave('v');
-		//spi_transfer_byte_as_slave((uint8_t)(volt & 0x00FF));
-		//spi_transfer_byte_as_slave((uint8_t)(volt >> 8));
+		if (millis() - adc_time > 3000)
+		{
+			uint8_t data[4];
+			uint16_t volt = read_voltage(ADC0);
+
+			data[0] = 'l';
+			data[1]= (uint8_t)(volt & 0x00FF);
+			data[2] = 'h';
+			data[3] = (uint8_t)(volt >> 8);
+			spi_transfer_data_as_slave(data);
+		}
 		_delay_ms(10);
 	}
 	spi_end();
