@@ -18,27 +18,27 @@
 volatile uint8_t	data_to_send = 0,
 			cmd;
 
-int enabled = 0;
+volatile int enabled = 0;
 
 ISR(EXT_INT0_vect)
 {
-	// disable SPI
-	//USICR &= ~(_BV(USIWM0) | _BV(USICS1) | _BV(USIOIE));
+	if (PIN_SS & DD_SS)
+	{
+		//disable SPI
+		USICR &= ~(_BV(USIWM0) | _BV(USICS1) | _BV(USIOIE));
+	}
+	else
+	{
+		/*
+		 * three wire mode
+		 * external clock, both edges
+		 * enable overflow interrupt
+		 */
 
-	/*
-	 * three wire mode
-	 * external clock, both edges
-	 * enable overflow interrupt
-	 */
-
-	if (enabled)
-		return;
-
-	enabled = 1;
-
-	USIDR = 0;
-	USICR = _BV(USIWM0) | _BV(USICS1) | _BV(USIOIE);
-	USISR = _BV(USIOIF);
+		USIDR = 0;
+		USICR = _BV(USIWM0) | _BV(USICS1) | _BV(USIOIE);
+		USISR = _BV(USIOIF);
+	}
 }
 
 ISR(USI_OVF_vect)
@@ -56,18 +56,17 @@ spi_init(bool is_master)
 	{
 		/* SS as input */
 		DDR_SS &= ~_BV(DD_SS);
-		PORT_SS &= ~_BV(DD_SS);
-
-		/* enable INT0 */
-		GIMSK |= INT0;
-		sei();
+		PORT_SS |= _BV(DD_SS);
 
 		/* any logical change causes interrupt */
-		//MCUCR |= ISC00;
+		MCUCR |= _BV(ISC00);
 
 		DDR_SPI |= _BV(DD_DO);				/* DO as output */
 		DDR_SPI &= ~(_BV(DD_DI) | _BV(DD_USCK));	/* DI and SCK as inputs */
 		PORT_SPI |= _BV(DD_DI) | _BV(DD_USCK);		/* enable pullups */
+
+		/* enable INT0 */
+		GIMSK |= _BV(INT0);
 	}
 	else
 	{

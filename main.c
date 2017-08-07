@@ -134,7 +134,7 @@ main(void)
 	//PORT_LED |= _BV(LED_GREEN);
 	//PORT_LED |= _BV(LED_RED);
 
-	//spi_init(false);
+	spi_init(false);
 	//adc_init();
 	while (1) {
 		check_button_state(&btn_state);
