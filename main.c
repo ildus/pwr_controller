@@ -156,7 +156,6 @@ main(void)
 				pwr_on = false;
 				enable_power(pwr_on);
 				PORT_LED &= ~_BV(LED_GREEN);
-				_delay_ms(5000);
 			}
 			else if (click_time == 0)
 				click_time = millis();
