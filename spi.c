@@ -1,6 +1,5 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
-#include <util/atomic.h>
 #include "spi.h"
 
 #define PORT_SPI PORTA
@@ -23,10 +22,7 @@ uint8_t				buf[BUF_SIZE];
 ISR(EXT_INT0_vect)
 {
 	if (PIN_SS & DD_SS)
-	{
-		//disable SPI
-		USICR &= ~(_BV(USIWM0) | _BV(USICS1) | _BV(USIOIE));
-	}
+		spi_end();
 	else
 	{
 		/*
@@ -55,54 +51,25 @@ ISR(USI_OVF_vect)
 
 /* Initialize pins for spi communication */
 void
-spi_init(bool is_master)
+spi_init()
 {
-	if (!is_master)
-	{
-		/* SS as input */
-		DDR_SS &= ~_BV(DD_SS);
-		PORT_SS |= _BV(DD_SS);
+	/* SS as input */
+	DDR_SS &= ~_BV(DD_SS);
+	PORT_SS |= _BV(DD_SS);
 
-		/* any logical change causes interrupt */
-		MCUCR |= _BV(ISC00);
+	/* any logical change causes interrupt */
+	MCUCR |= _BV(ISC00);
 
-		DDR_SPI |= _BV(DD_DO);				/* DO as output */
-		DDR_SPI &= ~(_BV(DD_DI) | _BV(DD_USCK));	/* DI and SCK as inputs */
-		PORT_SPI |= _BV(DD_DI) | _BV(DD_USCK);		/* enable pullups */
+	DDR_SPI |= _BV(DD_DO);				/* DO as output */
+	DDR_SPI &= ~(_BV(DD_DI) | _BV(DD_USCK));	/* DI and SCK as inputs */
+	PORT_SPI |= _BV(DD_DI) | _BV(DD_USCK);		/* enable pullups */
 
-		/* enable INT0 */
-		GIMSK |= _BV(INT0);
-	}
-	else
-	{
-		DDR_SPI |= _BV(DD_DO) | _BV(DD_USCK);		/* DO and USCK as output */
-		DDR_SPI &= ~_BV(DD_DI);				/* DI as input */
-	}
-}
-
-/* Shift byte through target device and get one byte */
-uint8_t
-spi_transfer_byte(uint8_t data)
-{
-	USIDR = data;
-
-	// clear counter and counter overflow interrupt flag
-	USISR = _BV(USIOIF);
-
-	/*
-	 * three wire mode
-	 * software clock strobe by USITC
-	 * make one strobe
-	 */
-	USICR = (1 << USIWM0) |  (1 << USICLK) | (1 << USICS1) | _BV(USITC);
-	while (!(USISR & _BV(USIOIF)))
-		USICR |= _BV(USITC);
-
-	return USIDR;
+	/* enable INT0 */
+	GIMSK |= _BV(INT0);
 }
 
 uint8_t
-spi_transfer_data_as_slave(uint8_t *data)
+spi_transfer_data(uint8_t *data)
 {
 	for (int i = 0; i < BUF_SIZE; i++)
 		buf[i] = data[i];
@@ -113,5 +80,6 @@ spi_transfer_data_as_slave(uint8_t *data)
 void
 spi_end(void)
 {
-	USICR &= ~(_BV(USIWM1) | _BV(USIWM0));
+	//disable SPI
+	USICR &= ~(_BV(USIWM0) | _BV(USICS1) | _BV(USIOIE));
 }

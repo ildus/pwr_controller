@@ -31,19 +31,49 @@ const double INTERNAL_VREF = 1.208,
 #define PORT_PWR PORTA
 #define PIN_PWR PA3
 
+bool			pwr_on = true,
+				enable_red = false;
+
 void setup_led(void)
 {
 	DDR_LED |= _BV(LED_RED) | _BV(LED_GREEN);
 	PORT_LED &= ~(_BV(LED_RED) | _BV(LED_GREEN));
 }
 
-void enable_power(bool enable)
+void enable_power(bool enable, bool force)
 {
+	pwr_on = enable;
 	DDR_PWR |= _BV(PIN_PWR);
-	if (enable)
+
+	if (pwr_on)
+	{
 		PORT_PWR |= _BV(PIN_PWR);
+		PORT_LED |= _BV(LED_GREEN);
+		PORT_LED &= ~_BV(LED_RED);
+		enable_red = true;
+	}
 	else
+	{
 		PORT_PWR &= ~_BV(PIN_PWR);
+		PORT_LED &= ~_BV(LED_GREEN);
+		enable_red = !force;
+	}
+}
+
+void check_red(float voltage)
+{
+	if (!enable_red)
+	{
+		PORT_LED &= ~_BV(LED_RED);
+		return;
+	}
+
+	if (voltage <= 2.9)
+		PORT_LED ^= _BV(LED_RED);
+	else if (voltage <= 3.1)
+		PORT_LED |= _BV(LED_RED);
+	else
+		PORT_LED &= ~_BV(LED_RED);
 }
 
 void
@@ -126,19 +156,20 @@ main(void)
 	unsigned long	click_time = 0,
 					adc_time = 0;
 	ButtonState		btn_state;
-	bool			pwr_on = false;
 
 	sei();
 	setup_led();
 	setup_timer0();
 	setup_btn();
-	enable_power(pwr_on);
-	//PORT_LED |= _BV(LED_GREEN);
-	//PORT_LED |= _BV(LED_RED);
+	enable_power(pwr_on, false);
 
-	spi_init(false);
+	spi_init();
 	adc_init();
-	while (1) {
+	while (1)
+	{
+		uint16_t	volt = read_voltage(ADC0);
+		float		voltage = volt * INTERNAL_VREF / 1024 / DELIM_COEF;
+
 		check_button_state(&btn_state);
 		if (!btn_state.old_level)
 			click_time = 0;
@@ -146,45 +177,40 @@ main(void)
 		if (!pwr_on && btn_state.clicked)
 		{
 			btn_state.clicked = false;
-			pwr_on = true;
-			enable_power(pwr_on);
-			PORT_LED |= _BV(LED_GREEN);
+			if (voltage > 2.9)
+				enable_power(true, true);
+			else
+				enable_red = false;
 		}
 		else if (pwr_on && btn_state.clicked)
 		{
 			if (click_time && millis() - click_time > 3000)
 			{
 				btn_state.clicked = false;
-				pwr_on = false;
-				enable_power(pwr_on);
-				PORT_LED &= ~_BV(LED_GREEN);
+				enable_power(false, true);
 			}
 			else if (click_time == 0)
 				click_time = millis();
 		}
 
-		if (millis() - adc_time > 3000)
+		if (millis() - adc_time > 2000)
 		{
-			uint8_t data[4];
-			uint16_t volt = read_voltage(ADC0);
-			float voltage = volt * INTERNAL_VREF / 1024 / DELIM_COEF;
+			if (voltage <= 2.9 && pwr_on)
+				enable_power(false, false);
 
-			if (voltage <= 2.85)
-				PORT_LED ^= _BV(LED_RED);
-			else if (voltage <= 3.1)
-				PORT_LED |= _BV(LED_RED);
-			else
-				PORT_LED &= ~_BV(LED_RED);
-
-			data[0] = 'l';
-			data[1]= (uint8_t)(volt & 0x00FF);
-			data[2] = 'h';
-			data[3] = (uint8_t)(volt >> 8);
-			spi_transfer_data_as_slave(data);
+			check_red(voltage);
+			if (pwr_on)
+			{
+				uint8_t data[4];
+				data[0] = 'l';
+				data[1]= (uint8_t)(volt & 0x00FF);
+				data[2] = 'h';
+				data[3] = (uint8_t)(volt >> 8);
+				spi_transfer_data(data);
+			}
 
 			adc_time = millis();
 		}
 		_delay_ms(10);
 	}
-	spi_end();
 }
