@@ -31,7 +31,7 @@ const double INTERNAL_VREF = 1.208,
 #define PORT_PWR PORTA
 #define PIN_PWR PA3
 
-bool			pwr_on = true,
+bool			pwr_on = false,
 				enable_red = false;
 
 void setup_led(void)
@@ -40,7 +40,7 @@ void setup_led(void)
 	PORT_LED &= ~(_BV(LED_RED) | _BV(LED_GREEN));
 }
 
-void enable_power(bool enable, bool force)
+void enable_power(bool enable)
 {
 	pwr_on = enable;
 	DDR_PWR |= _BV(PIN_PWR);
@@ -56,7 +56,6 @@ void enable_power(bool enable, bool force)
 	{
 		PORT_PWR &= ~_BV(PIN_PWR);
 		PORT_LED &= ~_BV(LED_GREEN);
-		enable_red = !force;
 	}
 }
 
@@ -161,7 +160,7 @@ main(void)
 	setup_led();
 	setup_timer0();
 	setup_btn();
-	enable_power(pwr_on, false);
+	enable_power(pwr_on);
 
 	spi_init();
 	adc_init();
@@ -178,16 +177,17 @@ main(void)
 		{
 			btn_state.clicked = false;
 			if (voltage > 2.9)
-				enable_power(true, true);
+				enable_power(true);
 			else
-				enable_red = false;
+				enable_red = !enable_red;
 		}
 		else if (pwr_on && btn_state.clicked)
 		{
 			if (click_time && millis() - click_time > 3000)
 			{
 				btn_state.clicked = false;
-				enable_power(false, true);
+				enable_power(false);
+				enable_red = false;
 			}
 			else if (click_time == 0)
 				click_time = millis();
@@ -196,7 +196,10 @@ main(void)
 		if (millis() - adc_time > 2000)
 		{
 			if (voltage <= 2.9 && pwr_on)
-				enable_power(false, false);
+			{
+				enable_power(false);
+				enable_red = true;
+			}
 
 			check_red(voltage);
 			if (pwr_on)
