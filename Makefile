@@ -9,7 +9,7 @@ BAUDRATE       = -B 200
 endif
 
 F_CPU          = 8000000
-CFLAGS	       = -std=c11 -DF_CPU=${F_CPU} -Wall -Os -mmcu=attiny24a
+CFLAGS	       = -std=c99 -DF_CPU=${F_CPU} -Wall -Os -mmcu=attiny24a
 
 CC = avr-gcc
 OBJ = main.o spi.o timer.o

@@ -8,19 +8,12 @@
 /*
  * internal 1.1V voltage reference, by datasheet
  * external capacitor should be connected to Aref
- * calibrated for actual chip, i got 1.197V
+ * calibrated for actual chip, i got 1.208V
  */
 const double INTERNAL_VREF = 1.208,
 			 DELIM_COEF = 0.18; // 1.5K and 330 resistors
 
 #define ADC0 0b0000
-#define ADC1 0b0001
-#define ADC2 0b0010
-#define ADC3 0b0011
-#define ADC4 0b0100
-#define ADC5 0b0101
-#define ADC6 0b0110
-#define ADC7 0b0111
 
 #define DDR_LED DDRB
 #define PORT_LED PORTB
@@ -33,14 +26,9 @@ const double INTERNAL_VREF = 1.208,
 
 bool			pwr_on = false,
 				enable_red = false;
+unsigned long	pwr_time = 0;
 
-void setup_led(void)
-{
-	DDR_LED |= _BV(LED_RED) | _BV(LED_GREEN);
-	PORT_LED &= ~(_BV(LED_RED) | _BV(LED_GREEN));
-}
-
-void enable_power(bool enable)
+static void enable_power(bool enable)
 {
 	pwr_on = enable;
 	DDR_PWR |= _BV(PIN_PWR);
@@ -51,31 +39,33 @@ void enable_power(bool enable)
 		PORT_LED |= _BV(LED_GREEN);
 		PORT_LED &= ~_BV(LED_RED);
 		enable_red = true;
+		pwr_time = millis();
 	}
 	else
 	{
+		pwr_time = 0;
 		PORT_PWR &= ~_BV(PIN_PWR);
 		PORT_LED &= ~_BV(LED_GREEN);
+
+		/* disable intterupt */
+		GIMSK &= ~_BV(INT0);
+
+		spi_end();
 	}
 }
 
-void check_red(float voltage)
+static inline void
+check_red(float voltage)
 {
-	if (!enable_red)
-	{
-		PORT_LED &= ~_BV(LED_RED);
-		return;
-	}
-
-	if (voltage <= 2.9)
+	if (enable_red && voltage <= 2.9)
 		PORT_LED ^= _BV(LED_RED);
-	else if (voltage <= 3.1)
+	else if (enable_red && voltage <= 3.1)
 		PORT_LED |= _BV(LED_RED);
 	else
 		PORT_LED &= ~_BV(LED_RED);
 }
 
-void
+static inline void
 adc_init(void)
 {
 	// power ADC
@@ -89,7 +79,7 @@ adc_init(void)
 	ADMUX = _BV(REFS1);
 }
 
-uint16_t
+static inline uint16_t
 adc_read(uint8_t pin)
 {
 	// select the corresponding channel 0~7
@@ -111,23 +101,17 @@ adc_read(uint8_t pin)
 	return (ADC);
 }
 
-uint16_t
+static inline uint16_t
 read_voltage(uint8_t pin)
 {
-	int		sum = 0;
+	uint16_t	sum = 0;
 
 	for (int i = 0; i < 9; i++)
 		sum += adc_read(pin);
 
-	return (uint16_t) (sum / 10.0);
+	return sum;
 	//v = (sum / 10) * INTERNAL_VREF / 1024;
 	//return (uint8_t) (v * 100);
-}
-
-void setup_btn(void)
-{
-	DDRA &= ~_BV(PA1);
-	PORTA &= ~_BV(PA1);
 }
 
 typedef struct ButtonState {
@@ -136,40 +120,43 @@ typedef struct ButtonState {
 	char old_level;
 } ButtonState;
 
-void check_button_state(ButtonState *state)
-{
-	char level = PINA & _BV(PA1);
-	if (level && state->old_level != level)
-	{
-		if (millis() - state->last_click > 100) {
-			state->clicked = true;
-		}
-		state->last_click = millis();
-	}
-	state->old_level = level;
-}
-
 int
 main(void)
 {
 	unsigned long	click_time = 0,
 					adc_time = 0;
-	ButtonState		btn_state;
+	ButtonState		btn_state = {false,0,0};
+
+	// setup btn
+	DDRA &= ~_BV(PA1);
+	PORTA &= ~_BV(PA1);
+
+	//setup LED
+	DDR_LED |= _BV(LED_RED) | _BV(LED_GREEN);
+	PORT_LED &= ~(_BV(LED_RED) | _BV(LED_GREEN));
 
 	sei();
-	setup_led();
 	setup_timer0();
-	setup_btn();
+
+	adc_init();
 	enable_power(pwr_on);
 
-	spi_init();
-	adc_init();
 	while (1)
 	{
 		uint16_t	volt = read_voltage(ADC0);
 		float		voltage = volt * INTERNAL_VREF / 1024 / DELIM_COEF;
 
-		check_button_state(&btn_state);
+		//check button state
+		char level = PINA & _BV(PA1);
+		if (level && btn_state.old_level != level)
+		{
+			if (millis() - btn_state.last_click > 100) {
+				btn_state.clicked = true;
+			}
+			btn_state.last_click = millis();
+		}
+		btn_state.old_level = level;
+
 		if (!btn_state.old_level)
 			click_time = 0;
 
@@ -193,6 +180,12 @@ main(void)
 				click_time = millis();
 		}
 
+		if (pwr_on && pwr_time && millis() - pwr_time > 15000)
+		{
+			pwr_time = 0;
+			spi_init();
+		}
+
 		if (millis() - adc_time > 2000)
 		{
 			if (voltage <= 2.9 && pwr_on)
@@ -203,14 +196,8 @@ main(void)
 
 			check_red(voltage);
 			if (pwr_on)
-			{
-				uint8_t data[4];
-				data[0] = 'l';
-				data[1]= (uint8_t)(volt & 0x00FF);
-				data[2] = 'h';
-				data[3] = (uint8_t)(volt >> 8);
-				spi_transfer_data(data);
-			}
+				spi_transfer_data((uint8_t)(volt >> 8),
+						(uint8_t)(volt & 0x00FF));
 
 			adc_time = millis();
 		}
