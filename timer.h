@@ -3,7 +3,7 @@
 
 #include "avr/io.h"
 
-extern volatile unsigned long millis_cnt;
+extern volatile unsigned int millis_cnt;
 
 #define millis() (millis_cnt)
 
@@ -13,7 +13,7 @@ setup_timer0(void)
 	TCCR0B |= _BV(CS02) | _BV(CS00); // prescaler = 1024
 
 	// initialize counters
-    TCNT0 = 0;
+	TCNT0 = 0;
 	millis_cnt = 0;
 
 	// enable overflow interrupt

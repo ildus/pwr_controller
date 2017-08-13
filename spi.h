@@ -18,11 +18,17 @@
 #define PIN_SS		PINB
 
 #define BUF_SIZE	4
+#define spi_enabled (USICR & _BV(USIOIE))
 
-extern uint8_t	spi_buf[BUF_SIZE];
+extern uint8_t			spi_buf[BUF_SIZE];
+extern volatile int		ibuf;
 
-static inline void spi_end(void)
+static inline void
+spi_end(void)
 {
+	if (!spi_enabled)
+		return;
+
 	USICR &= ~(_BV(USIWM0) | _BV(USICS1) | _BV(USIOIE));
 }
 
@@ -31,8 +37,8 @@ spi_transfer_data(uint8_t high, uint8_t low)
 {
 	spi_buf[0] = 'l';
 	spi_buf[1] = low;
-	spi_buf[2] = 'h';
-	spi_buf[3] = high;
+	spi_buf[2] = high;
+	spi_buf[3] = high ^ low;
 }
 
 /* Initialize pins for spi communication */
@@ -54,4 +60,22 @@ spi_init()
 	GIMSK |= _BV(INT0);
 }
 
-#endif /* _SPI_H_ */
+static inline void
+spi_enable()
+{
+	/*
+	 * three wire mode
+	 * external clock, both edges
+	 * enable overflow interrupt
+	 */
+
+	if (spi_enabled)
+		return;
+
+	ibuf = 0;
+	USIDR = spi_buf[ibuf];
+	USICR = _BV(USIWM0) | _BV(USICS1) | _BV(USIOIE);
+	USISR = _BV(USIOIF);
+}
+
+#endif

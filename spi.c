@@ -10,18 +10,7 @@ ISR(EXT_INT0_vect)
 	if (PIN_SS & DD_SS)
 		spi_end();
 	else
-	{
-		/*
-		 * three wire mode
-		 * external clock, both edges
-		 * enable overflow interrupt
-		 */
-
-		ibuf = 0;
-		USIDR = spi_buf[ibuf];
-		USICR = _BV(USIWM0) | _BV(USICS1) | _BV(USIOIE);
-		USISR = _BV(USIOIF);
-	}
+		spi_enable();
 }
 
 ISR(USI_OVF_vect)

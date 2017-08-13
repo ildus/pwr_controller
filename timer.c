@@ -1,7 +1,7 @@
 #include "timer.h"
 #include "avr/interrupt.h"
 
-volatile unsigned long millis_cnt;
+volatile unsigned int millis_cnt;
 
 ISR(TIM0_OVF_vect)
 {
