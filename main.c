@@ -26,7 +26,6 @@ const double INTERNAL_VREF = 1.208,
 
 bool			pwr_on = false,
 				enable_red = false;
-unsigned long	pwr_time = 0;
 
 static void enable_power(bool enable)
 {
@@ -39,18 +38,11 @@ static void enable_power(bool enable)
 		PORT_LED |= _BV(LED_GREEN);
 		PORT_LED &= ~_BV(LED_RED);
 		enable_red = true;
-		pwr_time = millis();
 	}
 	else
 	{
-		pwr_time = 0;
 		PORT_PWR &= ~_BV(PIN_PWR);
 		PORT_LED &= ~_BV(LED_GREEN);
-
-		/* disable intterupt */
-		GIMSK &= ~_BV(INT0);
-
-		spi_end();
 	}
 }
 
@@ -63,6 +55,51 @@ check_red(float voltage)
 		PORT_LED |= _BV(LED_RED);
 	else
 		PORT_LED &= ~_BV(LED_RED);
+}
+
+/*
+ * >= 4.5	- 0001
+ * >= 4		- 0010
+ * >= 3.5	- 0011
+ * >= 3.1	- 0100
+ * >= 3.0	- 0101
+ * >= 2.9	- 0110
+ * else		- 0111
+ */
+static inline void
+set_pins_out(float voltage)
+{
+	unsigned char res;
+
+	res = 0b111;
+
+	if (voltage >= 4.5)
+		res = 0b001;
+	else if (voltage >= 4)
+		res = 0b010;
+	else if (voltage >= 3.5)
+		res = 0b011;
+	else if (voltage >= 3.1)
+		res = 0b100;
+	else if (voltage >= 3.0)
+		res = 0b101;
+	else if (voltage >= 2.9)
+		res = 0b110;
+
+	if (res & 0b100)
+		PORT_SPI |= _BV(DD_USCK);
+	else
+		PORT_SPI &= ~_BV(DD_USCK);
+
+	if (res & 0b010)
+		PORT_SPI |= _BV(DD_DO);
+	else
+		PORT_SPI &= ~_BV(DD_DO);
+
+	if (res & 0b001)
+		PORT_SPI |= _BV(DD_DI);
+	else
+		PORT_SPI &= ~_BV(DD_DI);
 }
 
 static inline void
@@ -135,6 +172,14 @@ main(void)
 	DDR_LED |= _BV(LED_RED) | _BV(LED_GREEN);
 	PORT_LED &= ~(_BV(LED_RED) | _BV(LED_GREEN));
 
+	//setup voltage lines, SCK, DO, DI
+	DDR_SPI |= _BV(DD_USCK);
+	DDR_SPI |= _BV(DD_DO);
+	DDR_SPI |= _BV(DD_DI);
+	PORT_SPI &= ~_BV(DD_USCK);
+	PORT_SPI &= ~_BV(DD_DO);
+	PORT_SPI &= ~_BV(DD_DI);
+
 	sei();
 	setup_timer0();
 
@@ -144,7 +189,7 @@ main(void)
 	while (1)
 	{
 		uint16_t	volt = read_voltage(ADC0);
-		float		voltage = volt * INTERNAL_VREF / 1024 / DELIM_COEF;
+		float		voltage = volt * INTERNAL_VREF / 1024 / DELIM_COEF / 10;
 
 		//check button state
 		char level = PINA & _BV(PA1);
@@ -180,12 +225,6 @@ main(void)
 				click_time = millis();
 		}
 
-		if (pwr_on && pwr_time && millis() - pwr_time > 15000)
-		{
-			pwr_time = 0;
-			spi_init();
-		}
-
 		if (millis() - adc_time > 2000)
 		{
 			if (voltage <= 2.9 && pwr_on)
@@ -195,10 +234,7 @@ main(void)
 			}
 
 			check_red(voltage);
-			if (pwr_on)
-				spi_transfer_data((uint8_t)(volt >> 8),
-						(uint8_t)(volt & 0x00FF));
-
+			set_pins_out(voltage);
 			adc_time = millis();
 		}
 		_delay_ms(10);
