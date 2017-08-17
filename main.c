@@ -26,6 +26,9 @@ const double INTERNAL_VREF = 1.208,
 #define PIN_PWR PA3
 #define PIN_OUT PA2
 
+#define LOW_LEVEL		3.5
+#define LOWEST_LEVEL	3.2
+
 bool			pwr_on = false,
 				enable_red = false;
 
@@ -51,9 +54,9 @@ static void enable_power(bool enable)
 static inline void
 check_red(float voltage)
 {
-	if (enable_red && voltage <= 2.9)
+	if (enable_red && voltage <= LOWEST_LEVEL)
 		PORT_LED ^= _BV(LED_RED);
-	else if (enable_red && voltage <= 3.1)
+	else if (enable_red && voltage <= LOW_LEVEL)
 		PORT_LED |= _BV(LED_RED);
 	else
 		PORT_LED &= ~_BV(LED_RED);
@@ -167,7 +170,7 @@ typedef struct ButtonState {
 int
 main(void)
 {
-	unsigned long	click_time = 0,
+	unsigned int	click_time = 0,
 					adc_time = 0,
 					opi_time = 0;
 	ButtonState		btn_state = {false,0,0};
@@ -210,7 +213,7 @@ main(void)
 		char level = PINA & _BV(PA1);
 		if (level && btn_state.old_level != level)
 		{
-			if (millis() - btn_state.last_click > 100) {
+			if (millis() - btn_state.last_click > 50) {
 				btn_state.clicked = true;
 			}
 			btn_state.last_click = millis();
@@ -223,7 +226,7 @@ main(void)
 		if (!pwr_on && btn_state.clicked)
 		{
 			btn_state.clicked = false;
-			if (voltage > 2.9)
+			if (voltage > LOWEST_LEVEL)
 				enable_power(true);
 			else
 				enable_red = !enable_red;
@@ -242,17 +245,17 @@ main(void)
 
 		if (millis() - adc_time > 2000)
 		{
-			if (voltage <= 2.9 && pwr_on)
+			if (voltage <= LOWEST_LEVEL && pwr_on)
 			{
 				enable_power(false);
 				enable_red = true;
 			}
 
-			if (voltage < 3.1 && pwr_on && (PIN_SS & _BV(DD_SS)))
+			if (pwr_on && (PIN_SS & _BV(DD_SS)))
 			{
 				if (opi_time == 0)
 					opi_time = millis();
-				else if (opi_time && (millis() - opi_time > (60000 * 5)))
+				else if (opi_time && ((millis() - opi_time) > 30000))
 				{
 					enable_power(false);
 					enable_red = true;
