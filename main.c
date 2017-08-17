@@ -1,6 +1,7 @@
 #include "avr/io.h"
 #include "avr/interrupt.h"
 #include <util/delay.h>
+#include <stdbool.h>
 
 #include "spi.h"
 #include "timer.h"
@@ -23,6 +24,7 @@ const double INTERNAL_VREF = 1.208,
 #define DDR_PWR DDRA
 #define PORT_PWR PORTA
 #define PIN_PWR PA3
+#define PIN_OUT PA2
 
 bool			pwr_on = false,
 				enable_red = false;
@@ -100,6 +102,11 @@ set_pins_out(float voltage)
 		PORT_SPI |= _BV(DD_DI);
 	else
 		PORT_SPI &= ~_BV(DD_DI);
+
+	if (PIN_SS & _BV(DD_SS))
+		PORT_PWR |= _BV(PIN_OUT);
+	else
+		PORT_PWR &= ~_BV(PIN_OUT);
 }
 
 static inline void
@@ -161,7 +168,8 @@ int
 main(void)
 {
 	unsigned long	click_time = 0,
-					adc_time = 0;
+					adc_time = 0,
+					opi_time = 0;
 	ButtonState		btn_state = {false,0,0};
 
 	// setup btn
@@ -179,6 +187,13 @@ main(void)
 	PORT_SPI &= ~_BV(DD_USCK);
 	PORT_SPI &= ~_BV(DD_DO);
 	PORT_SPI &= ~_BV(DD_DI);
+
+	// set SS as input
+	DDR_SS &= ~_BV(DD_SS);
+	PORT_SS |= _BV(DD_SS);
+
+	// set check pin as output
+	DDR_PWR |= _BV(PIN_OUT);
 
 	sei();
 	setup_timer0();
@@ -232,6 +247,19 @@ main(void)
 				enable_power(false);
 				enable_red = true;
 			}
+
+			if (voltage < 3.1 && pwr_on && (PIN_SS & _BV(DD_SS)))
+			{
+				if (opi_time == 0)
+					opi_time = millis();
+				else if (opi_time && (millis() - opi_time > (60000 * 5)))
+				{
+					enable_power(false);
+					enable_red = true;
+				}
+			}
+			else
+				opi_time = 0;
 
 			check_red(voltage);
 			set_pins_out(voltage);
